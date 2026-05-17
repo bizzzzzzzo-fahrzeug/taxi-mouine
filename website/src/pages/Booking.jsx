@@ -1,9 +1,11 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import AddressInput from '../components/AddressInput'
 import { getToken, estimateFare, createRide } from '../lib/api'
+import { reverseGeocode } from '../lib/geo'
 
 const defaultCenter = [51.1947, 6.4354]
 
@@ -45,12 +47,17 @@ export default function Booking() {
   const [scheduledFor, setScheduledFor] = useState('')
   const [notes, setNotes] = useState('')
 
-  const selecting = !pickup ? 'pickup' : !dropoff ? 'dropoff' : 'done'
-
-  const handleMapClick = useCallback((pos) => {
-    if (!pickup) setPickup(pos)
-    else if (!dropoff) setDropoff(pos)
+  const handleMapClick = useCallback(async (pos) => {
+    if (!pickup) {
+      const label = await reverseGeocode(pos.lat, pos.lng)
+      setPickup({ ...pos, label: label || `${pos.lat.toFixed(4)}, ${pos.lng.toFixed(4)}` })
+    } else if (!dropoff) {
+      const label = await reverseGeocode(pos.lat, pos.lng)
+      setDropoff({ ...pos, label: label || `${pos.lat.toFixed(4)}, ${pos.lng.toFixed(4)}` })
+    }
   }, [pickup, dropoff])
+
+  useEffect(() => { setFare(null) }, [pickup, dropoff])
 
   async function handleEstimate() {
     if (!pickup || !dropoff) return
@@ -92,7 +99,7 @@ export default function Booking() {
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold md:text-4xl">Taxi buchen</h1>
-          <p className="mt-2 text-muted-foreground">Adresse eingeben, Preis sehen, buchen.</p>
+          <p className="mt-2 text-muted-foreground">Adresse eingeben oder auf Karte klicken — Preis sehen, buchen.</p>
         </div>
 
         {error && (
@@ -106,28 +113,18 @@ export default function Booking() {
 
         <div className="grid gap-8 lg:grid-cols-[1fr_1.1fr]">
           <div className="space-y-5 card">
-            <div>
-              <label className="label">Abholort</label>
-              <input
-                type="text"
-                className="input"
-                placeholder="z. B. Hauptbahnhof Mönchengladbach"
-                value={pickup ? `${pickup.lat.toFixed(4)}, ${pickup.lng.toFixed(4)}` : ''}
-                onChange={() => {}}
-              />
-              {selecting === 'pickup' && <p className="text-xs text-muted-foreground mt-1">👆 Klicken Sie auf die Karte</p>}
-            </div>
-            <div>
-              <label className="label">Zielort</label>
-              <input
-                type="text"
-                className="input"
-                placeholder="z. B. Flughafen Düsseldorf"
-                value={dropoff ? `${dropoff.lat.toFixed(4)}, ${dropoff.lng.toFixed(4)}` : ''}
-                onChange={() => {}}
-              />
-              {selecting === 'dropoff' && <p className="text-xs text-muted-foreground mt-1">👆 Klicken Sie auf die Karte</p>}
-            </div>
+            <AddressInput
+              label="Abholort"
+              placeholder="z. B. Hauptbahnhof Mönchengladbach"
+              value={pickup}
+              onChange={(v) => { setPickup(v); setFare(null) }}
+            />
+            <AddressInput
+              label="Zielort"
+              placeholder="z. B. Flughafen Düsseldorf"
+              value={dropoff}
+              onChange={(v) => { setDropoff(v); setFare(null) }}
+            />
 
             <div>
               <label className="label">Wann?</label>
@@ -243,6 +240,10 @@ export default function Booking() {
                 Zurücksetzen
               </button>
             )}
+
+            <p className="text-xs text-center text-muted-foreground">
+              👆 Sie können auch direkt auf die Karte klicken, um Orte auszuwählen
+            </p>
           </div>
 
           <div className="overflow-hidden rounded-2xl border border-border bg-card" style={{ boxShadow: 'var(--shadow-card)' }}>

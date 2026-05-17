@@ -1,11 +1,11 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Polyline, useMapEvents, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import AddressInput from '../components/AddressInput'
 import { getToken, estimateFare, createRide } from '../lib/api'
-import { reverseGeocode } from '../lib/geo'
+import { reverseGeocode, fetchRoute } from '../lib/geo'
 
 const defaultCenter = [51.1947, 6.4354]
 
@@ -41,6 +41,7 @@ export default function Booking() {
   const [pickup, setPickup] = useState(null)
   const [dropoff, setDropoff] = useState(null)
   const [fare, setFare] = useState(null)
+  const [routeCoords, setRouteCoords] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [when, setWhen] = useState('now')
@@ -64,8 +65,12 @@ export default function Booking() {
     setLoading(true)
     setError('')
     try {
-      const res = await estimateFare(pickup, dropoff)
+      const [res, route] = await Promise.all([
+        estimateFare(pickup, dropoff),
+        fetchRoute(pickup, dropoff),
+      ])
       setFare(res.estimate)
+      setRouteCoords(route)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -261,6 +266,12 @@ export default function Booking() {
               {pickup && <LocMarker position={pickup} label="Abholung" />}
               {dropoff && <LocMarker position={dropoff} label="Ziel" color="#EF4444" />}
               {pickup && <MapCenter center={[pickup.lat, pickup.lng]} />}
+              {routeCoords && (
+                <Polyline
+                  positions={routeCoords}
+                  pathOptions={{ color: '#2563EB', weight: 5, opacity: 0.7 }}
+                />
+              )}
             </MapContainer>
           </div>
         </div>

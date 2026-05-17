@@ -24,6 +24,20 @@ export async function geocode(query) {
   }
 }
 
+export async function fetchRoute(pickup, dropoff) {
+  const url = `https://router.project-osrm.org/route/v1/driving/${pickup.lng},${pickup.lat};${dropoff.lng},${dropoff.lat}?geometries=geojson&overview=full`
+  try {
+    const res = await fetch(url, { headers: { 'User-Agent': UA } })
+    if (!res.ok) return null
+    const json = await res.json()
+    const coords = json.routes?.[0]?.geometry?.coordinates
+    if (!coords) return null
+    return coords.map(([lng, lat]) => [lat, lng])
+  } catch {
+    return null
+  }
+}
+
 export async function reverseGeocode(lat, lng) {
   const url = new URL('https://nominatim.openstreetmap.org/reverse')
   url.searchParams.set('lat', lat)

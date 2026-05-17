@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Polyline, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { getRide } from '../lib/api'
+import { fetchRoute } from '../lib/geo'
 
 const statusConfig = {
   pending: { label: 'Wartet auf Annahme', color: 'bg-amber-50 text-amber-700', ring: 'ring-amber-200', icon: '⏳' },
@@ -45,12 +46,17 @@ export default function Tracking() {
   const [ride, setRide] = useState(null)
   const [loading, setLoading] = useState(true)
   const [driverPos, setDriverPos] = useState(null)
+  const [routeCoords, setRouteCoords] = useState(null)
 
   useEffect(() => {
     async function load() {
       try {
         const res = await getRide(id)
         setRide(res.ride)
+        if (res.ride.pickup && res.ride.dropoff) {
+          const route = await fetchRoute(res.ride.pickup, res.ride.dropoff)
+          setRouteCoords(route)
+        }
       } catch (err) {
         console.error(err)
       } finally {
@@ -150,6 +156,12 @@ export default function Tracking() {
                     html: '<div style="background:#EF4444;color:white;padding:4px 10px;border-radius:16px;font-weight:600;font-size:12px;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,0.2)">🏁 Ziel</div>',
                     iconSize: [0, 0],
                   })}
+                />
+              )}
+              {routeCoords && (
+                <Polyline
+                  positions={routeCoords}
+                  pathOptions={{ color: '#2563EB', weight: 5, opacity: 0.7 }}
                 />
               )}
               {driverPos && <DriverMarker position={driverPos} />}

@@ -7,14 +7,14 @@ import { getToken, estimateFare, createRide } from '../lib/api'
 
 const defaultCenter = [51.1947, 6.4354]
 
-function LocationMarker({ position, label, color = '#EAB308' }) {
+function LocMarker({ position, label, color = 'oklch(0.84 0.17 88)' }) {
   if (!position) return null
   return (
     <Marker
       position={[position.lat, position.lng]}
       icon={L.divIcon({
         className: '',
-        html: `<div style="background:${color};color:white;padding:4px 10px;border-radius:16px;font-weight:600;font-size:12px;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,0.15)">${label}</div>`,
+        html: `<div style="background:${color};color:black;padding:3px 10px;border-radius:16px;font-weight:600;font-size:12px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.15)">${label}</div>`,
         iconSize: [0, 0],
       })}
     />
@@ -22,11 +22,7 @@ function LocationMarker({ position, label, color = '#EAB308' }) {
 }
 
 function MapEvents({ onMapClick }) {
-  useMapEvents({
-    click(e) {
-      onMapClick({ lat: e.latlng.lat, lng: e.latlng.lng })
-    },
-  })
+  useMapEvents({ click(e) { onMapClick({ lat: e.latlng.lat, lng: e.latlng.lng }) } })
   return null
 }
 
@@ -42,24 +38,18 @@ export default function Booking() {
 
   const [pickup, setPickup] = useState(null)
   const [dropoff, setDropoff] = useState(null)
-  const [pickupAddr, setPickupAddr] = useState('')
-  const [dropoffAddr, setDropoffAddr] = useState('')
   const [fare, setFare] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [scheduledForLater, setScheduledForLater] = useState(false)
-  const [scheduledDate, setScheduledDate] = useState('')
-  const [scheduledTime, setScheduledTime] = useState('')
-  const [note, setNote] = useState('')
+  const [when, setWhen] = useState('now')
+  const [scheduledFor, setScheduledFor] = useState('')
+  const [notes, setNotes] = useState('')
 
   const selecting = !pickup ? 'pickup' : !dropoff ? 'dropoff' : 'done'
 
   const handleMapClick = useCallback((pos) => {
-    if (!pickup) {
-      setPickup(pos)
-    } else if (!dropoff) {
-      setDropoff(pos)
-    }
+    if (!pickup) setPickup(pos)
+    else if (!dropoff) setDropoff(pos)
   }, [pickup, dropoff])
 
   async function handleEstimate() {
@@ -77,17 +67,12 @@ export default function Booking() {
   }
 
   async function handleBook() {
-    if (!isLoggedIn) {
-      navigate('/anmelden')
-      return
-    }
+    if (!isLoggedIn) { navigate('/anmelden'); return }
     setLoading(true)
     setError('')
     try {
       let scheduledAt = null
-      if (scheduledForLater && scheduledDate && scheduledTime) {
-        scheduledAt = new Date(`${scheduledDate}T${scheduledTime}`).toISOString()
-      }
+      if (when === 'later' && scheduledFor) scheduledAt = new Date(scheduledFor).toISOString()
       const res = await createRide(pickup, dropoff, scheduledAt)
       navigate(`/tracking/${res.ride._id}`)
     } catch (err) {
@@ -98,24 +83,16 @@ export default function Booking() {
   }
 
   function handleReset() {
-    setPickup(null)
-    setDropoff(null)
-    setPickupAddr('')
-    setDropoffAddr('')
-    setFare(null)
-    setError('')
-    setScheduledForLater(false)
-    setScheduledDate('')
-    setScheduledTime('')
-    setNote('')
+    setPickup(null); setDropoff(null); setFare(null); setError('')
+    setWhen('now'); setScheduledFor(''); setNotes('')
   }
 
   return (
-    <div className="page-container py-8 sm:py-12 fade-in">
-      <div className="max-w-5xl mx-auto">
+    <div className="page-container py-10 fade-in">
+      <div className="max-w-6xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-stone-900">Taxi buchen</h1>
-          <p className="text-stone-500 mt-1">Adresse eingeben, Preis sehen, buchen.</p>
+          <h1 className="text-3xl font-bold md:text-4xl">Taxi buchen</h1>
+          <p className="mt-2 text-muted-foreground">Adresse eingeben, Preis sehen, buchen.</p>
         </div>
 
         {error && (
@@ -127,167 +104,163 @@ export default function Booking() {
           </div>
         )}
 
-        <div className="grid lg:grid-cols-5 gap-6">
-          <div className="lg:col-span-2 space-y-4">
-            <div className="card space-y-4">
-              <div>
-                <label className="input-label">Abholort</label>
-                <input
-                  type="text"
-                  className="input-field"
-                  placeholder="Adresse oder auf Karte klicken"
-                  value={pickupAddr}
-                  onChange={(e) => setPickupAddr(e.target.value)}
-                />
-                {pickup && (
-                  <p className="text-xs text-stone-400 mt-1">
-                    {pickup.lat.toFixed(4)}, {pickup.lng.toFixed(4)}
-                  </p>
-                )}
-              </div>
-              <div>
-                <label className="input-label">Zielort</label>
-                <input
-                  type="text"
-                  className="input-field"
-                  placeholder="Adresse oder auf Karte klicken"
-                  value={dropoffAddr}
-                  onChange={(e) => setDropoffAddr(e.target.value)}
-                />
-                {dropoff && (
-                  <p className="text-xs text-stone-400 mt-1">
-                    {dropoff.lat.toFixed(4)}, {dropoff.lng.toFixed(4)}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="input-label">Wann?</label>
-                <div className="flex gap-2 mb-2">
-                  <button
-                    type="button"
-                    onClick={() => setScheduledForLater(false)}
-                    className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                      !scheduledForLater
-                        ? 'bg-brand-400 text-black'
-                        : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
-                    }`}
-                  >
-                    Jetzt
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setScheduledForLater(true)}
-                    className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                      scheduledForLater
-                        ? 'bg-brand-400 text-black'
-                        : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
-                    }`}
-                  >
-                    Für später
-                  </button>
-                </div>
-                {scheduledForLater && (
-                  <div className="flex gap-2">
-                    <input
-                      type="date"
-                      value={scheduledDate}
-                      onChange={(e) => setScheduledDate(e.target.value)}
-                      className="input-field text-sm flex-1"
-                      min={new Date().toISOString().split('T')[0]}
-                    />
-                    <input
-                      type="time"
-                      value={scheduledTime}
-                      onChange={(e) => setScheduledTime(e.target.value)}
-                      className="input-field text-sm flex-1"
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className="input-label">Notiz (optional)</label>
-                <input
-                  type="text"
-                  className="input-field"
-                  placeholder="z.B. Am Hintereingang"
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                />
-              </div>
-
-              <div className="flex gap-2">
-                {!fare ? (
-                  <button
-                    onClick={handleEstimate}
-                    disabled={!pickup || !dropoff || loading}
-                    className="btn-primary flex-1"
-                  >
-                    {loading ? 'Berechne...' : 'Festpreis berechnen'}
-                  </button>
-                ) : (
-                  <button onClick={handleBook} disabled={loading} className="btn-primary flex-1">
-                    {loading ? 'Wird gebucht...' : isLoggedIn ? 'Fahrt buchen' : 'Anmelden & buchen'}
-                  </button>
-                )}
-                {(pickup || dropoff) && (
-                  <button onClick={handleReset} className="btn-ghost !px-3" title="Zurücksetzen">
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                )}
-              </div>
+        <div className="grid gap-8 lg:grid-cols-[1fr_1.1fr]">
+          <div className="space-y-5 card">
+            <div>
+              <label className="label">Abholort</label>
+              <input
+                type="text"
+                className="input"
+                placeholder="z. B. Hauptbahnhof Mönchengladbach"
+                value={pickup ? `${pickup.lat.toFixed(4)}, ${pickup.lng.toFixed(4)}` : ''}
+                onChange={() => {}}
+              />
+              {selecting === 'pickup' && <p className="text-xs text-muted-foreground mt-1">👆 Klicken Sie auf die Karte</p>}
+            </div>
+            <div>
+              <label className="label">Zielort</label>
+              <input
+                type="text"
+                className="input"
+                placeholder="z. B. Flughafen Düsseldorf"
+                value={dropoff ? `${dropoff.lat.toFixed(4)}, ${dropoff.lng.toFixed(4)}` : ''}
+                onChange={() => {}}
+              />
+              {selecting === 'dropoff' && <p className="text-xs text-muted-foreground mt-1">👆 Klicken Sie auf die Karte</p>}
             </div>
 
+            <div>
+              <label className="label">Wann?</label>
+              <div className="flex rounded-md border border-border p-1">
+                {['now', 'later'].map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => setWhen(opt)}
+                    className={`flex-1 rounded px-3 py-1.5 text-sm font-medium transition ${
+                      when === opt ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'
+                    }`}
+                  >
+                    {opt === 'now' ? 'Jetzt' : 'Für später'}
+                  </button>
+                ))}
+              </div>
+              {when === 'later' && (
+                <input
+                  type="datetime-local"
+                  value={scheduledFor}
+                  onChange={(e) => setScheduledFor(e.target.value)}
+                  className="input mt-2"
+                  min={new Date().toISOString().slice(0, 16)}
+                />
+              )}
+            </div>
+
+            <div>
+              <label className="label">Notiz (optional)</label>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="input min-h-[80px] resize-none py-2"
+                placeholder="z. B. Anzahl Personen, Gepäck, Eingang Seitenstraße…"
+              />
+            </div>
+
+            <button
+              type="button"
+              className="btn btn-secondary w-full"
+              disabled={!pickup || !dropoff || loading}
+              onClick={handleEstimate}
+            >
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Berechne...
+                </span>
+              ) : (
+                <>
+                  <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l5.447 2.724A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                  </svg>
+                  Festpreis berechnen
+                </>
+              )}
+            </button>
+
             {fare && (
-              <div className="card border-2 border-brand-400 animate-scale-in">
-                <h3 className="font-semibold text-stone-900 mb-3">Fahrtübersicht</h3>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-stone-500">Strecke</span>
-                    <span className="font-medium">{fare.distance} km</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-stone-500">Dauer</span>
-                    <span className="font-medium">{fare.duration} min</span>
-                  </div>
-                  <div className="flex justify-between text-lg font-bold border-t border-stone-200 pt-2 mt-2">
-                    <span>Festpreis</span>
-                    <span className="text-brand-600">{fare.fareFormatted}</span>
-                  </div>
+              <div className="rounded-xl border p-4" style={{ borderColor: 'color-mix(in oklab, var(--color-primary) 30%, transparent)', backgroundColor: 'color-mix(in oklab, var(--color-primary) 5%, transparent)' }}>
+                <div className="flex items-baseline justify-between">
+                  <span className="text-sm text-muted-foreground">Geschätzter Preis</span>
+                  <span className="text-3xl font-bold">{fare.fareFormatted}</span>
                 </div>
-                <p className="text-xs text-stone-400 text-center mt-3">Nur Barzahlung. Sie zahlen direkt beim Fahrer.</p>
+                <div className="mt-3 flex flex-wrap gap-4 text-sm text-muted-foreground">
+                  <span className="inline-flex items-center gap-1.5">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l5.447 2.724A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                    </svg>
+                    {fare.distance} km
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    ca. {fare.duration} Min.
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Barzahlung
+                  </span>
+                </div>
               </div>
             )}
 
-            {selecting !== 'done' && (
-              <p className="text-sm text-stone-500 text-center">
-                {selecting === 'pickup'
-                  ? '👆 Klicken Sie auf die Karte, um den Abholort zu wählen'
-                  : '👆 Klicken Sie auf die Karte, um das Ziel zu wählen'}
-              </p>
+            <button
+              type="button"
+              className="btn btn-primary w-full btn-lg"
+              disabled={!fare || loading || (when === 'later' && !scheduledFor)}
+              onClick={handleBook}
+            >
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Wird gebucht...
+                </span>
+              ) : (
+                isLoggedIn ? 'Fahrt verbindlich buchen' : 'Anmelden & buchen'
+              )}
+            </button>
+
+            {(pickup || dropoff) && (
+              <button onClick={handleReset} className="btn btn-ghost w-full text-sm">
+                Zurücksetzen
+              </button>
             )}
           </div>
 
-          <div className="lg:col-span-3">
-            <div className="h-[400px] lg:h-[500px] rounded-xl overflow-hidden border border-stone-200">
-              <MapContainer
-                center={pickup ? [pickup.lat, pickup.lng] : defaultCenter}
-                zoom={13}
-                className="h-full w-full"
-              >
-                <TileLayer
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                />
-                <MapEvents onMapClick={handleMapClick} />
-                {pickup && <LocationMarker position={pickup} label="Abholung" />}
-                {dropoff && <LocationMarker position={dropoff} label="Ziel" color="#EF4444" />}
-                {pickup && <MapCenter center={[pickup.lat, pickup.lng]} />}
-              </MapContainer>
-            </div>
+          <div className="overflow-hidden rounded-2xl border border-border bg-card" style={{ boxShadow: 'var(--shadow-card)' }}>
+            <MapContainer
+              center={pickup ? [pickup.lat, pickup.lng] : defaultCenter}
+              zoom={13}
+              className="h-full w-full"
+              style={{ minHeight: 400 }}
+            >
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+              <MapEvents onMapClick={handleMapClick} />
+              {pickup && <LocMarker position={pickup} label="Abholung" />}
+              {dropoff && <LocMarker position={dropoff} label="Ziel" color="#EF4444" />}
+              {pickup && <MapCenter center={[pickup.lat, pickup.lng]} />}
+            </MapContainer>
           </div>
         </div>
       </div>

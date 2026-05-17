@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7
+    restart: always
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: taxi-mouine
+
+  backend:
+    build: ./backend
+    restart: always
+    ports:
+      - "6868:6868"
+    depends_on:
+      - mongodb
+    environment:
+      PORT: 6868
+      MONGODB_URI: mongodb://mongodb:27017/taxi-mouine
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: 7d
+      JWT_REFRESH_EXPIRES_IN: 30d
+      FARE_BASE: "4.00"
+      FARE_PER_KM: "2.00"
+      FARE_BASE_KM: "2"
+
+  website:
+    build: ./website
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  mongodb_data:

@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "Taxi Mouine",
+    "slug": "taxi-mouine-customer",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "backgroundColor": "#EAB308"
+    },
+    "ios": {
+      "supportsTablet": false
+    },
+    "android": {
+      "package": "de.taximouine.customer",
+      "adaptiveIcon": {
+        "backgroundColor": "#EAB308"
+      },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "RECEIVE_BOOT_COMPLETED"
+      ]
+    },
+    "plugins": [
+      "expo-location",
+      "expo-notifications"
+    ]
+  }
+}
